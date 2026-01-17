@@ -1,13 +1,23 @@
 import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
+
+  // ===== CORS 处理（关键）=====
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  // ===========================
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   const { ssoToken, password } = req.body;
 
-  // 访问密码校验（你稍后在 Vercel 里设置）
   if (password !== process.env.ACCESS_PASSWORD) {
     return res.status(401).json({ error: 'Invalid password' });
   }
@@ -17,7 +27,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 第二步：换 Bearer Token
+    // Step 2: SSO → Bearer
     const ssoRes = await fetch(
       'https://oauth.battle.net/oauth/sso',
       {
@@ -39,7 +49,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'SSO failed', ssoData });
     }
 
-    // 第三步：获取 authenticator 数据
+    // Step 3: Get authenticator data
     const authRes = await fetch(
       'https://authenticator-rest-api.bnet-identity.blizzard.net/v1/authenticator',
       {
@@ -59,7 +69,7 @@ export default async function handler(req, res) {
       deviceSecret: authData.deviceSecret
     });
 
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 }
